@@ -30,13 +30,30 @@ public class ProductServiceImpl implements IProductService{
     @Transactional(readOnly = true)
     public ResponseEntity<ProductResponseRest> search() {
         ProductResponseRest response = new ProductResponseRest();
-        try {
-            List<Product> products = (List<Product>) productRepository.findAll();
-            response.getProductResponse().setProducts(products);
-            response.setMetadata("Ok","00","Respuesta Exitosa");
+        List<Product> list = new ArrayList<>();
+        List<Product> listAux = new ArrayList<>();
+        try{
+            listAux = (List<Product>) productRepository.findAll();
+            //search product by name
+            if (listAux.size() > 0){
+                //programacion reactiva
+                listAux.stream().forEach(p -> {
+                    byte[] imageDescompressed = Util.decompressZLib(p.getPicture());
+                    p.setPicture(imageDescompressed);
+                    list.add(p);
+                });
+
+                response.getProductResponse().setProducts(list);
+                response.setMetadata("Respuesta ok","00","productos encontrados");
+
+            }else {
+                response.setMetadata("respuesta fallida","-1","productos no encontrado");
+                return new ResponseEntity<ProductResponseRest>(response, HttpStatus.NOT_FOUND);
+            }
+
         }catch (Exception e){
-            response.setMetadata("Failed","-1","Error al consultar");
-            e.printStackTrace();
+            e.getStackTrace();
+            response.setMetadata("respuesta fallida","-1","Error al buscar productos");
             return new ResponseEntity<ProductResponseRest>(response, HttpStatus.INTERNAL_SERVER_ERROR);
         }
         return new ResponseEntity<ProductResponseRest>(response, HttpStatus.OK);
@@ -146,6 +163,54 @@ public class ProductServiceImpl implements IProductService{
         }catch (Exception e){
             e.getStackTrace();
             response.setMetadata("respuesta fallida","-1","Errorl al buscar producto por nombre");
+            return new ResponseEntity<ProductResponseRest>(response, HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+        return new ResponseEntity<ProductResponseRest>(response, HttpStatus.OK);
+    }
+
+    @Override
+    @Transactional
+    public ResponseEntity<ProductResponseRest> update(Product product, Long categoryId, Long id) {
+        ProductResponseRest response = new ProductResponseRest();
+        List<Product> list = new ArrayList<>();
+        try{
+            //search product by id
+            Optional<Category> category = categoryRepository.findById(categoryId);
+            if (category.isPresent()){
+                product.setCategory(category.get());
+
+            }else {
+                response.setMetadata("respuesta fallida","-1","producto no encontrado");
+                return new ResponseEntity<ProductResponseRest>(response, HttpStatus.NOT_FOUND);
+            }
+
+            //search product to update
+            Optional<Product> productSearch = productRepository.findById(id);
+            if (productSearch.isPresent()){
+                productSearch.get().setQuantity(product.getQuantity());
+                productSearch.get().setCategory(product.getCategory());
+                productSearch.get().setName(product.getName());
+                productSearch.get().setPicture(product.getPicture());
+                productSearch.get().setPrice(product.getPrice());
+                //save product in database
+                Product productToUpdate = productRepository.save(productSearch.get());
+                if (productToUpdate != null) {
+                    list.add(productToUpdate);
+                    response.getProductResponse().setProducts(list);
+                    response.setMetadata("respuesta ok", "00", "producto actualizado");
+                }
+                else {
+                    response.setMetadata("respuesta fallida", "-1", "producto no actualizado");
+                    return new ResponseEntity<ProductResponseRest>(response, HttpStatus.NOT_FOUND);
+                }
+            }else {
+                response.setMetadata("respuesta fallida","-1","producto no actualizado");
+                return new ResponseEntity<ProductResponseRest>(response, HttpStatus.NOT_FOUND);
+            }
+
+        }catch (Exception e){
+            e.getStackTrace();
+            response.setMetadata("respuesta fallida","-1","Errorl al buscar producto");
             return new ResponseEntity<ProductResponseRest>(response, HttpStatus.INTERNAL_SERVER_ERROR);
         }
         return new ResponseEntity<ProductResponseRest>(response, HttpStatus.OK);
