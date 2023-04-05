@@ -72,4 +72,15 @@ public class ProductRestController {
         ResponseEntity<ProductResponseRest> response = productService.searchByName(name);
         return response;
     }
+
+    /*
+     * delete by id
+     * @param id
+     * @return
+     * */
+    @DeleteMapping("products/{id}")
+    public ResponseEntity<ProductResponseRest> deleteById(@PathVariable Long id){
+        ResponseEntity<ProductResponseRest> response = productService.deleteById(id);
+        return response;
+    }
 }
